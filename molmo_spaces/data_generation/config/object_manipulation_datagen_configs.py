@@ -322,6 +322,44 @@ class UnitreeG1RightArmTabletopPickAndPlaceViewerDebugConfig(
         return "unitree_g1_right_arm_tabletop_pick_and_place_viewer_debug"
 
 
+# TODO(g1-merge): one-off measurement config — remove before merging the
+# G1 branch to main. Added during iteration to sample 30 Salt_Shaker
+# episodes for success-rate measurement; not a stable datagen recipe.
+@register_config("UnitreeG1RightArmTabletopPickAndPlace30Config")
+class UnitreeG1RightArmTabletopPickAndPlace30Config(
+    UnitreeG1RightArmTabletopPickAndPlaceDataGenConfig
+):
+    """Headless 30-episode Salt_Shaker run for measuring success rate end-to-end."""
+
+    task_sampler_config: UnitreeG1TabletopPickAndPlaceTaskSamplerConfig = (
+        UnitreeG1TabletopPickAndPlaceTaskSamplerConfig(
+            task_sampler_class=UnitreeG1RightArmTabletopPickAndPlaceTaskSampler,
+            house_inds=[0],
+            scene_xml_paths=[
+                str(
+                    ASSETS_DIR
+                    / "scenes"
+                    / "unitree_g1_tabletop_v1"
+                    / "unitree_g1_tabletop_pelvis_minus_10cm_v1.xml"
+                ),
+            ],
+            samples_per_house=30,
+            added_pickup_objects=["Salt_Shaker_1"],
+            num_added_pickups=1,
+            episodes_per_added_pickup=1,
+            check_robot_placement_visibility=False,
+            robot_safety_radius=0.25,
+        )
+    )
+    output_dir: Path = (
+        ASSETS_DIR / "experiment_output" / "datagen" / "unitree_g1_tabletop_pnp_30_v1"
+    )
+
+    @property
+    def tag(self) -> str:
+        return "unitree_g1_right_arm_tabletop_pick_and_place_30"
+
+
 @register_config("UnitreeG1RightArmTabletopPickLiftViewerDebugConfig")
 class UnitreeG1RightArmTabletopPickLiftViewerDebugConfig(
     UnitreeG1RightArmTabletopPickAndPlaceViewerDebugConfig
