@@ -360,6 +360,96 @@ class UnitreeG1RightArmTabletopPickAndPlace30Config(
         return "unitree_g1_right_arm_tabletop_pick_and_place_30"
 
 
+# TODO(g1-merge): one-off measurement config — remove before merging the
+# G1 branch to main. Unlocked-waist (10-DoF IK) counterpart of the 30-config
+# for A/B success-rate comparison against the waist-locked baseline.
+@register_config("UnitreeG1RightArmTabletopPickAndPlace30WaistConfig")
+class UnitreeG1RightArmTabletopPickAndPlace30WaistConfig(
+    UnitreeG1RightArmTabletopPickAndPlace30Config
+):
+    """30-episode Salt_Shaker run with the waist DoF unlocked for IK."""
+
+    policy_config: UnitreeG1RightArmPickAndPlacePlannerPolicyConfig = (
+        UnitreeG1RightArmPickAndPlacePlannerPolicyConfig(g1_unlock_waist=True)
+    )
+    output_dir: Path = (
+        ASSETS_DIR
+        / "experiment_output"
+        / "datagen"
+        / "unitree_g1_tabletop_pnp_30_waist_v1"
+    )
+
+    @property
+    def tag(self) -> str:
+        return "unitree_g1_right_arm_tabletop_pick_and_place_30_waist"
+
+
+# TODO(g1-merge): one-off measurement config — remove before merging the
+# G1 branch to main. Multi-object success-rate sweep: 5 episodes per object
+# across the 8-object diagnostic set (40 episodes), waist locked. Paired with
+# the *WaistConfig below for an A/B that tests whether the waist gain
+# generalizes beyond the symmetric Salt_Shaker cylinder.
+@register_config("UnitreeG1RightArmTabletopPickAndPlaceMultiObj5Config")
+class UnitreeG1RightArmTabletopPickAndPlaceMultiObj5Config(
+    UnitreeG1RightArmTabletopPickAndPlaceDataGenConfig
+):
+    """Headless 5-episodes-per-object run over the 8-object diagnostic set (waist locked)."""
+
+    task_sampler_config: UnitreeG1TabletopPickAndPlaceTaskSamplerConfig = (
+        UnitreeG1TabletopPickAndPlaceTaskSamplerConfig(
+            task_sampler_class=UnitreeG1RightArmTabletopPickAndPlaceTaskSampler,
+            house_inds=[0],
+            scene_xml_paths=[
+                str(
+                    ASSETS_DIR
+                    / "scenes"
+                    / "unitree_g1_tabletop_v1"
+                    / "unitree_g1_tabletop_pelvis_minus_10cm_v1.xml"
+                ),
+            ],
+            samples_per_house=5 * len(G1_TABLETOP_DIAGNOSTIC_PICKUP_OBJECTS),
+            added_pickup_objects=G1_TABLETOP_DIAGNOSTIC_PICKUP_OBJECTS,
+            num_added_pickups=len(G1_TABLETOP_DIAGNOSTIC_PICKUP_OBJECTS),
+            episodes_per_added_pickup=5,
+            check_robot_placement_visibility=False,
+            robot_safety_radius=0.25,
+        )
+    )
+    output_dir: Path = (
+        ASSETS_DIR
+        / "experiment_output"
+        / "datagen"
+        / "unitree_g1_tabletop_pnp_multiobj5_v1"
+    )
+
+    @property
+    def tag(self) -> str:
+        return "unitree_g1_right_arm_tabletop_pick_and_place_multiobj5"
+
+
+# TODO(g1-merge): one-off measurement config — remove before merging the
+# G1 branch to main. Unlocked-waist counterpart of the multi-object sweep.
+@register_config("UnitreeG1RightArmTabletopPickAndPlaceMultiObj5WaistConfig")
+class UnitreeG1RightArmTabletopPickAndPlaceMultiObj5WaistConfig(
+    UnitreeG1RightArmTabletopPickAndPlaceMultiObj5Config
+):
+    """5-episodes-per-object run over the 8-object diagnostic set, waist unlocked."""
+
+    policy_config: UnitreeG1RightArmPickAndPlacePlannerPolicyConfig = (
+        UnitreeG1RightArmPickAndPlacePlannerPolicyConfig(g1_unlock_waist=True)
+    )
+    output_dir: Path = (
+        ASSETS_DIR
+        / "experiment_output"
+        / "datagen"
+        / "unitree_g1_tabletop_pnp_multiobj5_waist_v1"
+    )
+
+    @property
+    def tag(self) -> str:
+        return "unitree_g1_right_arm_tabletop_pick_and_place_multiobj5_waist"
+
+
 @register_config("UnitreeG1RightArmTabletopPickLiftViewerDebugConfig")
 class UnitreeG1RightArmTabletopPickLiftViewerDebugConfig(
     UnitreeG1RightArmTabletopPickAndPlaceViewerDebugConfig
