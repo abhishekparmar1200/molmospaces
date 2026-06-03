@@ -275,6 +275,18 @@ class UnitreeG1RightArmPickRobotView(RobotView):
         base = UnitreeG1BaseGroup(mj_data, namespace=namespace)
         move_groups = {
             "base": base,
+            # Exposed so the waist DoF can optionally participate in right-arm
+            # IK (toggled by the policy flag `g1_unlock_waist`). When the policy
+            # does not command the waist, its controller holds it at the init
+            # pose — dynamically identical to the prior waist-less view.
+            "waist": UnitreeG1BodyMoveGroup(
+                mj_data,
+                UNITREE_G1_WAIST_JOINTS,
+                "pelvis",
+                "torso_link",
+                base,
+                namespace,
+            ),
             "right_arm": UnitreeG1SideMoveGroup(
                 mj_data,
                 "right",

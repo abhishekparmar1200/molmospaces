@@ -372,6 +372,7 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
     assert np.isinf(tabletop_datagen_config.policy_config.pregrasp_tcp_rot_err_threshold)
     assert tabletop_datagen_config.policy_config.grasp_feasibility_max_grasps == 128
     assert tabletop_datagen_config.policy_config.g1_online_grasp_selector
+    assert not tabletop_datagen_config.policy_config.g1_unlock_waist
     assert tabletop_datagen_config.policy_config.g1_grasp_candidate_limit == 256
     assert tabletop_datagen_config.policy_config.g1_grasp_ik_eval_limit == 256
     assert tabletop_datagen_config.policy_config.g1_grasp_require_all_pick_place_phases
@@ -498,10 +499,15 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
     pick_view = pick_datagen_config.robot_config.robot_view_factory(
         pick_scene_data, pick_datagen_config.robot_config.robot_namespace
     )
-    assert pick_view.move_group_ids() == ["base", "right_arm", "gripper"]
+    assert pick_view.move_group_ids() == ["base", "waist", "right_arm", "gripper"]
     assert pick_view.get_gripper_movegroup_ids() == ["gripper"]
     assert pick_view.get_move_group("right_arm").leaf_frame_type == "site"
     assert pick_view.get_move_group("gripper").leaf_frame_type == "site"
+    # Waist exposed for optional 10-DoF IK (toggled by g1_unlock_waist); the
+    # waist controller holds it at the init pose when the flag is off.
+    assert pick_view.get_move_group("waist").n_actuators == 3
+    assert pick_datagen_config.robot_config.init_qpos["waist"] == [0.0, 0.0, 0.0]
+    assert pick_datagen_config.robot_config.command_mode["waist"] == "joint_position"
     assert (
         pick_scene_model.site("robot_0/right_grasp_site").id
         == pick_view.get_move_group("right_arm").leaf_frame_id
@@ -536,7 +542,7 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
         max_iter=250,
     )
     assert pick_ik is not None
-    assert set(pick_ik) == {"base", "right_arm", "gripper"}
+    assert set(pick_ik) == {"base", "waist", "right_arm", "gripper"}
     pick_ik_diag = pick_kinematics.diagnose_ik(
         "gripper",
         target_pose,
@@ -749,8 +755,10 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
         initial_pick_base_pose[:3, 3],
         atol=1e-3,
     )
-    assert pick_robot.state_dim == 16
-    assert pick_robot.action_dim(list(pick_robot.controllers)) == 9
+    # 19 = base(7) + waist(3) + right_arm(7) + gripper(2); waist exposed for
+    # optional 10-DoF IK. 12 = waist(3) + right_arm(7) + gripper(2) controllers.
+    assert pick_robot.state_dim == 19
+    assert pick_robot.action_dim(list(pick_robot.controllers)) == 12
 
     next_pick_base_pose = initial_pick_base_pose.copy()
     next_pick_base_pose[:3, 3] = [0.6, -0.1, initial_pick_base_pose[2, 3]]

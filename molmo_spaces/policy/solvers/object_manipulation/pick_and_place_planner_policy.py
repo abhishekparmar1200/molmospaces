@@ -859,6 +859,20 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
     def _copy_qpos_dict(self, qpos: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         return {move_group_id: np.asarray(values).copy() for move_group_id, values in qpos.items()}
 
+    def _g1_ik_unlocked_groups(self) -> list[str]:
+        """Move-group IDs whose joints the right-arm IK is allowed to move.
+
+        Returns ["waist", "right_arm"] when the `g1_unlock_waist` experiment
+        flag is set and the active robot view exposes a waist move group;
+        otherwise just ["right_arm"]. The waist guard keeps this safe when
+        paired with a view that has no waist group.
+        """
+        if getattr(self.policy_config, "g1_unlock_waist", False) and (
+            "waist" in self.robot_view.move_group_ids()
+        ):
+            return ["waist", "right_arm"]
+        return ["right_arm"]
+
     def _g1_eval_candidate_target_poses(
         self,
         target_poses: dict[str, np.ndarray],
@@ -868,6 +882,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
         robot_view = self.task.env.current_robot.robot_view
         kinematics = self.task.env.current_robot.kinematics
         gripper_mg_id = robot_view.get_gripper_movegroup_ids()[0]
+        unlocked_groups = self._g1_ik_unlocked_groups()
         phase_order = (
             ["pregrasp", "grasp", "lift", "preplace", "place"]
             if getattr(self.policy_config, "g1_grasp_require_all_pick_place_phases", True)
@@ -886,7 +901,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
                 result = kinematics.diagnose_ik(
                     gripper_mg_id,
                     target_poses[phase],
-                    ["right_arm"],
+                    unlocked_groups,
                     qpos,
                     base_pose,
                     max_iter=250,
@@ -2066,10 +2081,11 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
     def _tcp_to_jp_fn(self, mg_id: str, target_pose: np.ndarray) -> dict[str, np.ndarray]:
         kinematics = self.task.env.current_robot.kinematics
 
+        unlocked_groups = self._g1_ik_unlocked_groups()
         jp = kinematics.ik(
             mg_id,
             target_pose,
-            ["right_arm"],
+            unlocked_groups,
             self.robot_view.get_qpos_dict(),
             self.robot_view.base.pose,
         )
@@ -2078,7 +2094,11 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
         action = self.robot_view.get_ctrl_dict()
         if jp is not None:
             self.sequential_ik_failures = 0
-            action["right_arm"] = jp["right_arm"]
+            # Drive every solved group (right_arm, and waist when unlocked) so
+            # the waist controller actually tracks the IK solution rather than
+            # holding station.
+            for group in unlocked_groups:
+                action[group] = jp[group]
             self._record_failure_diagnostic_step(target_pose, True)
         else:
             self.sequential_ik_failures += 1
@@ -2336,6 +2356,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
         robot_view = self.task.env.current_robot.robot_view
         kinematics = self.task.env.current_robot.kinematics
         gripper_mg_id = robot_view.get_gripper_movegroup_ids()[0]
+        unlocked_groups = self._g1_ik_unlocked_groups()
 
         if pose.ndim > 2:
             return np.array(
@@ -2343,7 +2364,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
                     kinematics.ik(
                         gripper_mg_id,
                         single_pose,
-                        ["right_arm"],
+                        unlocked_groups,
                         robot_view.get_qpos_dict(),
                         robot_view.base.pose,
                         max_iter=100,
@@ -2358,7 +2379,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
         jp_dict = kinematics.ik(
             gripper_mg_id,
             pose,
-            ["right_arm"],
+            unlocked_groups,
             robot_view.get_qpos_dict(),
             robot_view.base.pose,
             max_iter=100,

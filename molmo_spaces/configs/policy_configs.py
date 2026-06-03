@@ -207,6 +207,13 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicyConfig(PickAndPlacePlannerPolicy
     g1_ik_debug_higher_z_offset: float = 0.05
     g1_ik_debug_top_k_grasps: int = 5
     g1_online_grasp_selector: bool = True
+    # Experiment toggle: when True, right-arm IK (selector feasibility AND
+    # runtime tracking) also solves for the 3 waist joints, giving a 10-DoF
+    # chain instead of 7. Adds reach/manipulability for cross-body carries at
+    # the cost of whole-body sway. Default False = waist held at init pose
+    # (behavior identical to the waist-less view). Requires the robot view to
+    # expose a "waist" move group (UnitreeG1RightArmPickRobotView does).
+    g1_unlock_waist: bool = False
     g1_grasp_candidate_limit: int = 256
     g1_grasp_ik_eval_limit: int = 256
     g1_grasp_require_all_pick_place_phases: bool = True
