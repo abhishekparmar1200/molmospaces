@@ -819,7 +819,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
         except KeyError:
             return -np.inf
 
-        table_center, table_size = body_aabb(model, data, table_body_id, visual_only=False)
+        table_center, table_size = body_aabb(model, data, table_body_id, visible_only=False)
         return float(table_center[2] + table_size[2] / 2)
 
     def _g1_pregrasp_debug(
@@ -1879,7 +1879,7 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
                 self.task.env.current_model,
                 self.task.env.current_data,
                 pickup_obj.body_id,
-                visual_only=False,
+                visible_only=False,
             )
             max_extent = float(np.max(size))
             volume = float(np.prod(size))

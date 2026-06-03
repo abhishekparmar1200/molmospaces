@@ -13,7 +13,7 @@ from molmo_spaces.tasks.pick_and_place_task import PickAndPlaceTask
 from molmo_spaces.tasks.pick_and_place_task_sampler import PickAndPlaceTaskSampler
 from molmo_spaces.tasks.task_sampler import BaseMujocoTaskSampler
 from molmo_spaces.tasks.task_sampler_errors import HouseInvalidForTask
-from molmo_spaces.utils.grasp_sample import has_valid_grasp_file
+from molmo_spaces.utils.grasps import has_valid_pickup_grasps
 from molmo_spaces.utils.mj_model_and_data_utils import body_aabb
 from molmo_spaces.utils.mujoco_scene_utils import get_supporting_geom
 from molmo_spaces.utils.pose import pos_quat_to_pose_mat, pose_mat_to_7d
@@ -67,7 +67,7 @@ class UnitreeG1RightArmTabletopPickAndPlaceTaskSampler(PickAndPlaceTaskSampler):
 
     def _table_top_z(self, env: CPUMujocoEnv) -> float:
         table_body = env.current_data.body(self.config.task_sampler_config.table_body_name).id
-        center, size = body_aabb(env.current_model, env.current_data, table_body, visual_only=False)
+        center, size = body_aabb(env.current_model, env.current_data, table_body, visible_only=False)
         return float(center[2] + size[2] / 2.0)
 
     def _sample_xy(self, center_xy: tuple[float, float], size_xy: tuple[float, float]) -> np.ndarray:
@@ -86,7 +86,7 @@ class UnitreeG1RightArmTabletopPickAndPlaceTaskSampler(PickAndPlaceTaskSampler):
             env.current_model,
             env.current_data,
             pickup_body.body_id,
-            visual_only=False,
+            visible_only=False,
         )
         pickup_half_size_xy = np.asarray(size[:2], dtype=float) / 2.0
         receptacle_half_size_xy = np.asarray(
@@ -103,7 +103,7 @@ class UnitreeG1RightArmTabletopPickAndPlaceTaskSampler(PickAndPlaceTaskSampler):
         model = env.current_model
         data = env.current_data
         mujoco.mj_forward(model, data)
-        center, size = body_aabb(model, data, body.body_id, visual_only=False)
+        center, size = body_aabb(model, data, body.body_id, visible_only=False)
         bottom_z = center[2] - size[2] / 2.0
         body_to_bottom = body.position[2] - bottom_z
 
@@ -194,7 +194,7 @@ class UnitreeG1RightArmTabletopPickAndPlaceTaskSampler(PickAndPlaceTaskSampler):
             ).tolist()
 
             asset_uid = self.get_asset_uid_from_object(env, pickup_obj_name)
-            if asset_uid and not has_valid_grasp_file(asset_uid):
+            if asset_uid and not has_valid_pickup_grasps(asset_uid):
                 log.info("Skipping %s because no valid grasp file exists", pickup_obj_name)
                 continue
 

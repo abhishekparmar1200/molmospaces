@@ -235,11 +235,9 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
 
     config = UnitreeG1Dex1RobotConfig()
     scene_spec = mujoco.MjSpec()
-    robot_spec = mujoco.MjSpec.from_file(str(xml_path))
     config.robot_cls.add_robot_to_scene(
         config,
         scene_spec,
-        robot_spec,
         config.robot_namespace,
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0, 0.0],
@@ -465,11 +463,9 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
         "molmo_spaces/resources/base_scene.xml"
     )
     datagen_scene_spec = mujoco.MjSpec.from_file(str(base_scene_path))
-    datagen_robot_spec = mujoco.MjSpec.from_file(str(xml_path))
     datagen_config.robot_config.robot_cls.add_robot_to_scene(
         datagen_config.robot_config,
         datagen_scene_spec,
-        datagen_robot_spec,
         datagen_config.robot_config.robot_namespace,
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0, 0.0],
@@ -481,11 +477,9 @@ def test_prepare_unitree_g1_dex1_smoke(tmp_path, monkeypatch):
     datagen_scene_model = datagen_scene_spec.compile()
     assert datagen_scene_model.body("robot_0/pelvis").id >= 0
     pick_scene_spec = mujoco.MjSpec.from_file(str(base_scene_path))
-    pick_robot_spec = mujoco.MjSpec.from_file(str(xml_path))
     pick_datagen_config.robot_config.robot_cls.add_robot_to_scene(
         pick_datagen_config.robot_config,
         pick_scene_spec,
-        pick_robot_spec,
         pick_datagen_config.robot_config.robot_namespace,
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0, 0.0],

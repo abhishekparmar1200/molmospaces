@@ -66,20 +66,22 @@ class UnitreeG1Robot(Robot):
         cls,
         robot_config,
         spec: MjSpec,
-        robot_spec: MjSpec,
         prefix: str,
         pos: list[float],
         quat: list[float],
         randomize_textures: bool = False,
+        strip_meshes: bool = False,
     ) -> None:
+        # Signature follows the post-#82 base class: the base now loads the
+        # robot spec itself (no robot_spec arg) and adds strip_meshes.
         super().add_robot_to_scene(
             robot_config,
             spec,
-            robot_spec,
             prefix,
             pos,
             quat,
             randomize_textures,
+            strip_meshes,
         )
         root_body = spec.body(prefix + cls.robot_model_root_name())
         if root_body is None:
