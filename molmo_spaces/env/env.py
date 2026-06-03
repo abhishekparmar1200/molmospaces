@@ -107,7 +107,7 @@ class BaseMujocoEnv(ABC):
         return self._mj_base_scene_path
 
     @property
-    def current_scene_metadata(self) -> dict:
+    def current_scene_metadata(self) -> dict | None:
         """Current scene metadata instance (always the same across batches)."""
         return self._scene_metadata
 
@@ -210,11 +210,11 @@ class CPUMujocoEnv(BaseMujocoEnv):
         else:
             width, height = (640, 480)  # Default resolution
         if HAS_FILAMENT:
-            self._renderer = MjFilamentRenderer(model=self.mj_model, width=width, height=height)
             log.info("Using MuJoCo renderer: filament")
+            self._renderer = MjFilamentRenderer(model=self.mj_model, width=width, height=height)
         else:
-            self._renderer = MjOpenGLRenderer(model=self.mj_model, width=width, height=height)
             log.info("Using MuJoCo renderer: classic")
+            self._renderer = MjOpenGLRenderer(model=self.mj_model, width=width, height=height)
 
         if self._parallelize and self._n_batch > 1:
             self._executor = ThreadPoolExecutor(max_workers=self._n_batch)

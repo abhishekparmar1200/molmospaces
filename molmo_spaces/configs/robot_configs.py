@@ -15,6 +15,7 @@ import numpy as np
 from mujoco import MjData
 
 from molmo_spaces.configs.abstract_config import Config
+from molmo_spaces.molmo_spaces_constants import get_robot_path
 from molmo_spaces.robots.abstract import Robot
 from molmo_spaces.robots.bimanual_yam import BimanualYamRobot
 from molmo_spaces.robots.floating_robotiq import FloatingRobotiqRobot
@@ -95,7 +96,6 @@ class BaseRobotConfig(Config):
     robot_namespace: (
         str  # namespace used to differentiate between one or multiple robots and the environment
     )
-    default_world_pose: list[float]
     command_mode: dict[
         str, str
     ]  # move_group to command_mode e.g., "joint", "cartesian", "velocity"
@@ -103,9 +103,10 @@ class BaseRobotConfig(Config):
     init_qpos_noise_range: dict[str, list[float]] | None
     locked_joint_qpos: dict[str, float] | None = None
     name: str | None
-    robot_xml_path: (
-        Path | None
-    )  # robot name and XML file (required if load_robot_from_file is True)
+    robot_xml_path: Path  # path to the robot XML file within the robot directory
+    robot_dir: Path | None = (
+        None  # path to the robot directory, if not using a prepackaged MlSpaces robot
+    )
 
     # configurable control parameters for low-level mujoco controllers
     gravcomp: bool = False  # apply gravity compensation to every body in the robot
@@ -123,6 +124,20 @@ class BaseRobotConfig(Config):
         if self.action_noise_config is None:
             object.__setattr__(self, "action_noise_config", ActionNoiseConfig())
 
+    def get_robot_dir(self) -> Path:
+        """
+        Get the path to the robot directory, which may or may not be a prepackaged MlSpaces robot.
+        """
+        if self.robot_dir is not None:
+            return self.robot_dir
+        return get_robot_path(self.name)
+
+    def get_robot_xml_path(self) -> Path:
+        """
+        Get the full path to the robot XML file.
+        """
+        return self.get_robot_dir() / self.robot_xml_path
+
 
 # Concrete robot configurations
 
@@ -134,7 +149,6 @@ class FrankaRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = FrankaRobot
     robot_namespace: str = "robot_0/"
     robot_view_factory: RobotViewFactory | None = FrankaDroidRobotView
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     name: str = "franka_droid"
     robot_xml_path: Path = Path("model.xml")
     base_size: list[float] | None = [0.5, 0.5, 0.58]
@@ -170,7 +184,6 @@ class MobileFrankaRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = MobileFrankaRobot
     robot_namespace: str = "robot_0/"
     robot_view_factory: RobotViewFactory | None = MobileFrankaDroidRobotView
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     name: str = "franka_droid"
     robot_xml_path: Path = Path("model.xml")
     base_size: list[float] = [0.5, 0.5, 0.58]
@@ -192,18 +205,17 @@ class MobileFrankaRobotConfig(BaseRobotConfig):
     base_control_params: dict[str, dict[str, float]] = {
         "base_x_act": {
             "kp": 25000,
-            "kd": 1,
+            "damping_ratio": 1.0,
             "ctrlrange": 25,
         },
         "base_y_act": {
             "kp": 25000,
-            "kd": 1,
+            "damping_ratio": 1.0,
             "ctrlrange": 25,
         },
         "base_theta_act": {
             "kp": 5000,
-            "kd": 0.5,
-            "ctrlrange": np.pi,
+            "damping_ratio": 1.0,
         },
     }
 
@@ -215,7 +227,6 @@ class FrankaCAPRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = FrankaRobot
     robot_namespace: str = "robot_0/"
     robot_view_factory: RobotViewFactory | None = FrankaCAPRobotView
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     name: str = "franka_cap"
     robot_xml_path: Path = Path("model.xml")
     base_size: list[float] | None = [0.5, 0.5, 0.58]
@@ -278,7 +289,6 @@ class RBY1Config(BaseRobotConfig):
         "torso": np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
     }
 
-    default_world_pose: list[float] = [0.0, 0.0, 0.0]
     use_holo_base: bool = True  # Whether to use virtual holonomic base joints or not
     command_mode: dict[str, str | None] = {
         "arm": "joint_position",  # e.g., "joint_position", "joint_velocity", "ee_position", "ee_velocity"
@@ -325,7 +335,6 @@ class FloatingRUMRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = FloatingRUMRobot
     robot_view_factory: RobotViewFactory | None = FloatingRUMRobotView
     robot_namespace: str = "robot_0/"
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     ctrl_dt_ms: float = 50.0
     command_mode: dict = {}
     name: str = "floating_rum"
@@ -341,7 +350,6 @@ class FloatingRobotiq2f85RobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, BaseRobotConfig], Robot] = FloatingRobotiqRobot
     robot_view_factory: RobotViewFactory = FloatingRobotiq2f85RobotView
     robot_namespace: str = "robot_0/"
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     ctrl_dt_ms: float = 50.0
     command_mode: dict = {}
     action_spec: dict[str, int] = {"base": 7, "gripper": 2}  # Max lengths for action components
@@ -360,7 +368,6 @@ class I2rtYamRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = I2rtYamRobot
     robot_view_factory: RobotViewFactory | None = I2rtYamRobotView
     robot_namespace: str = "robot_0/"
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     name: str = "i2rt_yam"
     robot_xml_path: Path = Path("yam.xml")
     # Base platform size [width, depth, height] - raises robot above ground
@@ -398,7 +405,6 @@ class BimanualYamRobotConfig(BaseRobotConfig):
     robot_factory: Callable[[MjData, Any], Robot] | None = BimanualYamRobot
     robot_view_factory: RobotViewFactory | None = BimanualYamRobotView
     robot_namespace: str = "robot_0/"
-    default_world_pose: list[float] = [0, 0, 0, 1, 0, 0, 0]
     name: str = "i2rt_yam"  # Use same directory as single-arm YAM
     robot_xml_path: Path = Path("bimanual_yam.xml")
     # Base platform size [x, y, z] - raises robot above ground

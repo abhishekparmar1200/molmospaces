@@ -18,10 +18,10 @@ from molmo_spaces.policy.solvers.object_manipulation.base_object_manipulation_pl
     TCPMoveSequence,
 )
 from molmo_spaces.utils.grasp_sample import (
-    compute_grasp_pose,
-    get_all_grasp_poses,
     get_noncolliding_grasp_mask,
+    select_grasp_pose,
 )
+from molmo_spaces.utils.grasps import get_pickup_grasps
 from molmo_spaces.utils.mj_model_and_data_utils import body_aabb
 from molmo_spaces.utils.pose import pose_mat_to_7d
 
@@ -269,10 +269,13 @@ class PickAndPlacePlannerPolicy(BaseObjectManipulationPlannerPolicy):
         pickup_obj: MlSpacesObject = om.get_object_by_name(task_config.pickup_obj_name)
         place_receptacle: MlSpacesObject = om.get_object_by_name(task_config.place_receptacle_name)
 
-        grasp_pose_world = compute_grasp_pose(
-            self,
-            pickup_obj,
-            robot_view,
+        candidate_grasps = get_pickup_grasps(
+            self.task.env, pickup_obj, grasp_libraries=self.policy_config.grasp_libraries
+        )
+        grasp_pose_world = select_grasp_pose(
+            self.task.env,
+            candidate_grasps,
+            pickup_obj.pose,
             check_collision=self.policy_config.filter_colliding_grasps,
             n_collision_checks=self.policy_config.grasp_collision_max_grasps,
             collision_batch_size=self.policy_config.grasp_collision_batch_size,
@@ -1361,7 +1364,15 @@ class UnitreeG1RightArmPickAndPlacePlannerPolicy(PickAndPlacePlannerPolicy):
     ) -> np.ndarray:
         model = self.task.env.current_model
         data = self.task.env.current_data
-        grasp_poses_world, _, object_pose = get_all_grasp_poses(self, pickup_obj)
+        # PR #97 replaced get_all_grasp_poses (which returned
+        # (poses, gripper, object_pose)) with get_pickup_grasps, returning
+        # only the world-frame poses (it applies obj.pose @ grasps + the
+        # flipped-grasp concatenation internally). object_pose is recovered
+        # from pickup_obj.pose for the COM-distance scoring term below.
+        grasp_poses_world = get_pickup_grasps(
+            self.task.env, pickup_obj, include_flipped=True
+        )
+        object_pose = pickup_obj.pose
         original_grasp_count = len(grasp_poses_world) // 2
 
         tcp_pose_world = self._current_g1_tcp_pose()

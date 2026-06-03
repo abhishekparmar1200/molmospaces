@@ -352,7 +352,7 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
 
         om = env.object_managers[env.current_batch_index]
         pickup_obj = om.get_object_by_name(self.episode_spec.task["pickup_obj_name"])
-        from molmo_spaces.utils.grasp_sample import has_joint_grasp_file
+        from molmo_spaces.utils.grasps import get_joint_grasp_path
 
         if not isinstance(pickup_obj, MlSpacesArticulationObject):
             return
@@ -373,7 +373,7 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
                 .get("joints", {})
                 .get(joint_name, None)
             )
-            if has_joint_grasp_file(thor_object_name, thor_joint_name):
+            if get_joint_grasp_path(thor_object_name, thor_joint_name) is not None:
                 joint_names_with_grasp_file.append(joint_name)
         if len(joint_names_with_grasp_file) == 0:
             raise ValueError(f"No joints with grasp file found for {pickup_obj.name}")
@@ -638,6 +638,9 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
             if "head" in robot.robot_view.move_group_ids():
                 head_mg = robot.robot_view.get_move_group("head")
                 head_mg.ctrl = head_mg.noop_ctrl
+            # recompute control
+            robot.set_stationary()
+            robot.compute_control()
         log.info("Scene setup from episode spec completed.")
 
     def _randomize_colors(self, env: CPUMujocoEnv) -> None:
@@ -655,7 +658,7 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
             om = env.object_managers[env.current_batch_index]
             for object_name, color_rgba in object_colors.items():
                 body_id = om.get_object_body_id(object_name)
-                for geom_id in descendant_geoms(model, body_id, visual_only=True):
+                for geom_id in descendant_geoms(model, body_id, visible_only=True):
                     model.geom_matid[geom_id] = -1
                     model.geom_rgba[geom_id] = color_rgba
                 log.info(f"Colored object {object_name}")
@@ -845,6 +848,12 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
         robot_pose_m = pos_quat_to_pose_mat(robot_base_pose[0:3], robot_base_pose[3:7])
         robot_view.base.pose = robot_pose_m
 
+        # Reset controllers
+        for controller in env.current_robot.controllers.values():
+            controller.reset()
+        env.current_robot.set_stationary()
+        env.current_robot.compute_control()
+
         # Forward to update positions
         mujoco.mj_forward(env.current_model, env.current_data)
 
@@ -855,7 +864,7 @@ class JsonEvalTaskSampler(BaseMujocoTaskSampler):
             om = env.object_managers[env.current_batch_index]
             for object_name, color_rgba in object_colors.items():
                 body_id = om.get_object_body_id(object_name)
-                for geom_id in descendant_geoms(model, body_id, visual_only=True):
+                for geom_id in descendant_geoms(model, body_id, visible_only=True):
                     model.geom_matid[geom_id] = -1
                     model.geom_rgba[geom_id] = color_rgba
                 log.info(f"Colored object {object_name}")

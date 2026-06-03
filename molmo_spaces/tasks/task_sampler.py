@@ -32,7 +32,6 @@ from molmo_spaces.env.env import BaseMujocoEnv, CPUMujocoEnv
 from molmo_spaces.molmo_spaces_constants import (
     ABS_PATH_OF_TOP_LEVEL_MOLMO_SPACES_DIR,
     DATA_TYPE_TO_SOURCE_TO_VERSION,
-    get_robot_path,
     get_scenes,
     get_scenes_root,
 )
@@ -550,10 +549,13 @@ class BaseMujocoTaskSampler:
         if self._datagen_profiler is not None:
             self._datagen_profiler.start("compile_xml_load")
 
-        robot_file_path = get_robot_path(robot_config.name) / robot_config.robot_xml_path
+        robot_file_path = robot_config.get_robot_xml_path()
         use_include = robot_config.name == "rby1" or robot_config.name == "rby1m"
 
         if use_include:
+            # for whatever reason, the rby1 specifically doesn't play nice with MjSpec insertion,
+            # so we directly insert the rby1 xml into the scene. For all other robots,
+            # we use spec editing.
             spec = xml_add_rby1_to_scene(
                 self.config.task_sampler_config, scene_file_path, robot_file_path
             )
@@ -599,10 +601,9 @@ class BaseMujocoTaskSampler:
             self.config.robot_config.robot_cls.add_robot_to_scene(
                 self.config.robot_config,
                 spec,
-                MjSpec.from_file(str(robot_file_path)),
                 prefix="robot_0/",
-                pos=[0, -0.15],  # TOOD(abhay): is this ok?
-                quat=[1, 0, 0, 1],
+                pos=[0.0, 0.0],
+                quat=[1.0, 0.0, 0.0, 0.0],
                 randomize_textures=self.config.task_sampler_config.randomize_robot_textures,
             )
 
@@ -708,7 +709,7 @@ class BaseMujocoTaskSampler:
 
         return setup_empty_materials(spec, num_materials)
 
-    def update_scene(self, scene_path: str | None = None, variant: str = "base") -> None:
+    def update_scene(self, scene_path: str | None = None) -> None:
         """Update the environment's scene by loading a new scene model.
 
         Args:
@@ -716,7 +717,7 @@ class BaseMujocoTaskSampler:
             variant: The scene variant to use when scene_path is None (ceiling", "map", "base", etc.)
         """
         if scene_path is None:
-            scene_path = self._current_house_scene_path(variant=variant)
+            scene_path = self._current_house_scene_path()
 
         # If using a MolmoSpaces scene, install it
         if (
@@ -940,7 +941,7 @@ class BaseMujocoTaskSampler:
                 )
                 self._samples_per_current_house = 1
 
-    def _current_house_scene_path(self, variant: str = "base") -> str | None:
+    def _current_house_scene_path(self) -> str | None:
         """Get the scene path for the current house index and specified variant.
 
         Args:
@@ -954,6 +955,7 @@ class BaseMujocoTaskSampler:
         split_map = mapping[self.config.data_split]
         idx = self.current_house_index
         house_variants = split_map.get(idx, None)
+        variant = self.config.task_sampler_config.house_variant
 
         if house_variants is None:
             raise RuntimeError(f"No scene file for split '{self.config.data_split}' index {idx}")
@@ -1032,7 +1034,6 @@ class BaseMujocoTaskSampler:
         self,
         force_advance_scene=False,
         house_index=None,
-        variant: str = "ceiling",
     ) -> None | BaseMujocoTask:
         """Returns a task with batch size task_batch_size.
 
@@ -1057,7 +1058,7 @@ class BaseMujocoTaskSampler:
         )
         assert house_index is None or self.current_house_index == house_index
 
-        scene_path = self._current_house_scene_path(variant=variant)
+        scene_path = self._current_house_scene_path()
 
         need_load = (
             self._env is None
@@ -1081,7 +1082,7 @@ class BaseMujocoTaskSampler:
             if self._datagen_profiler is not None:
                 self._datagen_profiler.start("scene_load")
             try:
-                self.update_scene(scene_path=scene_path, variant=variant)
+                self.update_scene(scene_path=scene_path)
             finally:
                 if self._datagen_profiler is not None:
                     self._datagen_profiler.end("scene_load")

@@ -34,17 +34,6 @@ def add_visual_capsule(scene, point1, point2, radius, rgba) -> None:
     )
 
 
-def update_visual_robot(scene_model, scene_data, robot_xml_path, joint_positions=None) -> NoReturn:
-    """Updates the visual robot's configuration in the scene.
-
-    Args:
-        scene: mjvScene object
-        robot_model: MjModel of the robot
-        joint_positions (dict, optional): Dictionary of joint name to position values
-    """
-    raise NotImplementedError("Not implemented")
-
-
 def randomize_door_joints(  # TODO: do these defaults make sense?
     spec: MjSpec,
     scene_metadata: dict,
@@ -301,10 +290,10 @@ def get_supporting_geom(
     assert model.body_rootid[object_id] == object_id, "Object is not a root body"
 
     try:
-        body_aabb_center, _ = body_aabb(model, data, object_id, visual_only=True)
+        body_aabb_center, _ = body_aabb(model, data, object_id, visible_only=True)
     except ValueError:
-        # fallback if body doesn't have any visual geoms (usually not the case)
-        body_aabb_center, _ = body_aabb(model, data, object_id, visual_only=False)
+        # fallback if body doesn't have any visible geoms (usually not the case)
+        body_aabb_center, _ = body_aabb(model, data, object_id, visible_only=False)
     cos_threshold = np.cos(angle_threshold)
 
     for c in data.contact:
